@@ -2303,7 +2303,9 @@ const ShareModal = ({ game, opponentName, onClose, onShare, hasShotChart, hasRot
   });
   const [busy, setBusy] = React.useState(false);
   const [status, setStatus] = React.useState('');
-  const toggle = (k) => setSel(s => ({ ...s, [k]: !s[k] }));
+  const [error, setError] = React.useState('');
+  const [readyFiles, setReadyFiles] = React.useState(null);
+  const toggle = (k) => { setSel(s => ({ ...s, [k]: !s[k] })); setError(''); setReadyFiles(null); };
   const items = [
     { key: 'boxScoreJPG',  label: 'Box Score (JPG)',       avail: true },
     { key: 'rotationsJPG', label: 'Rotations (JPG)',       avail: hasRotations },
@@ -2313,12 +2315,47 @@ const ShareModal = ({ game, opponentName, onClose, onShare, hasShotChart, hasRot
     { key: 'gameFileJSON', label: 'Game File (JSON)',      avail: true },
   ];
   const anySelected = items.some(({ key, avail }) => sel[key] && avail);
-  const go = async () => {
-    setBusy(true); setStatus('');
-    try { await onShare(sel, setStatus); }
-    catch(e) { if (e.name !== 'AbortError') console.error(e); }
-    finally { setBusy(false); setStatus(''); }
+
+  // Step 1: generate files. Step 2: share (must be a fresh tap — satisfies iOS gesture requirement).
+  const generate = async () => {
+    setBusy(true); setStatus(''); setError(''); setReadyFiles(null);
+    try {
+      const files = await onShare(sel, setStatus);
+      if (!files || files.length === 0) { setError('No files were generated. Try again.'); return; }
+      setReadyFiles(files);
+      setStatus('Files ready — tap Share to send.');
+    } catch(e) {
+      setError('Failed to generate files. Please try again.');
+      console.error(e);
+    } finally { setBusy(false); }
   };
+
+  const doShare = async () => {
+    if (!readyFiles || readyFiles.length === 0) return;
+    setBusy(true); setStatus('Opening share sheet...'); setError('');
+    try {
+      if (navigator.share) {
+        const canAll = !navigator.canShare || navigator.canShare({ files: readyFiles });
+        const imgFiles = readyFiles.filter(f => f.type === 'image/jpeg');
+        const canImgs = imgFiles.length > 0 && (!navigator.canShare || navigator.canShare({ files: imgFiles }));
+        if (canAll) {
+          await navigator.share({ files: readyFiles, title: `${game.teamName} vs ${opponentName} — ${game.date}` });
+          onClose();
+        } else if (canImgs) {
+          await navigator.share({ files: imgFiles, title: `${game.teamName} vs ${opponentName} — ${game.date}` });
+          onClose();
+        } else {
+          setError('Your browser does not support file sharing. Open in Safari (iOS) or Chrome (Android).');
+        }
+      } else {
+        setError('Share not available on this browser. Open in Safari (iOS) or Chrome (Android).');
+      }
+    } catch(e) {
+      if (e.name === 'AbortError') { onClose(); }
+      else { setError('Share failed. Please try again.'); console.error(e); }
+    } finally { setBusy(false); setStatus(''); }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className={`${theme.card} ${theme.text} rounded-xl shadow-2xl w-full max-w-sm`} onClick={e => e.stopPropagation()}>
@@ -2329,18 +2366,24 @@ const ShareModal = ({ game, opponentName, onClose, onShare, hasShotChart, hasRot
         <div className="p-4 space-y-3">
           {items.map(({ key, label, avail }) => (
             <label key={key} className={`flex items-center gap-3 ${!avail ? 'opacity-40' : 'cursor-pointer'}`}>
-              <input type="checkbox" checked={!!sel[key] && avail} disabled={!avail} onChange={() => avail && toggle(key)} className="w-4 h-4 accent-orange-500 flex-shrink-0" />
+              <input type="checkbox" checked={!!sel[key] && avail} disabled={!avail || !!readyFiles} onChange={() => avail && toggle(key)} className="w-4 h-4 accent-orange-500 flex-shrink-0" />
               <span className="text-sm">{label}</span>
               {!avail && <span className="text-xs text-gray-500 ml-auto italic">not available</span>}
             </label>
           ))}
           {status && <p className="text-xs text-orange-400 text-center pt-1">{status}</p>}
+          {error && <p className="text-xs text-red-400 text-center pt-1">{error}</p>}
         </div>
         <div className="flex gap-2 p-4 pt-0">
           <button onClick={onClose} disabled={busy} className={`flex-1 py-2 rounded text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}>Cancel</button>
-          <button onClick={go} disabled={busy || !anySelected} className="flex-1 py-2 rounded bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-1.5">
-            {busy ? 'Preparing...' : <><Share size={14} /> Share</>}
-          </button>
+          {!readyFiles
+            ? <button onClick={generate} disabled={busy || !anySelected} className="flex-1 py-2 rounded bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-50">
+                {busy ? 'Generating...' : 'Prepare Files'}
+              </button>
+            : <button onClick={doShare} disabled={busy} className="flex-1 py-2 rounded bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {busy ? 'Sharing...' : <><Share size={14} /> Share</>}
+              </button>
+          }
         </div>
       </div>
     </div>
@@ -2620,20 +2663,7 @@ const BoxScore = ({ game, onBack, onMainMenu, filterPeriod, setFilterPeriod, dar
       const blob = new Blob([JSON.stringify([game], null, 2)], { type: 'application/json' });
       files.push(new File([blob], `${base}.json`, { type: 'application/json' }));
     }
-    if (files.length === 0) return;
-    setStatus('Opening share sheet...');
-    const canShare = navigator.share && navigator.canShare && navigator.canShare({ files });
-    if (canShare) {
-      await navigator.share({ files, title: `${game.teamName} vs ${opponentName} — ${game.date}` });
-    } else {
-      for (const file of files) {
-        const url = URL.createObjectURL(file);
-        const a = document.createElement('a'); a.href = url; a.download = file.name; a.click();
-        URL.revokeObjectURL(url);
-        await new Promise(r => setTimeout(r, 300));
-      }
-    }
-    setShowShare(false);
+    return files;
   };
 
   const exportShotChartJPG = async () => {
