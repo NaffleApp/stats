@@ -2719,15 +2719,10 @@ const BoxScore = ({ game, onBack, onMainMenu, filterPeriod, setFilterPeriod, dar
       <div ref={boxScoreRef} className={`${theme.card} rounded-lg shadow-lg p-4`}>
         <h2 className="text-xl font-bold mb-1 text-center">Box Score — {game.teamName} v {opponentName}</h2>
         <p className={`text-sm ${theme.textMuted} mb-4 text-center`}>{game.date} @ {game.location || 'N/A'}</p>
-        <div className="flex items-center mb-4 gap-2">
-          <div className="flex-1" />
-          <div className="flex gap-2 flex-wrap justify-center">
-            {periods.map(period => (<button key={period} onClick={() => setFilterPeriod(String(period))} className={`px-4 py-2 rounded ${filterPeriod === String(period) ? 'bg-orange-600 text-white' : darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>{getPeriodLabel(period, game.numPeriods)}</button>))}
-            <button onClick={() => setFilterPeriod('Total')} className={`px-4 py-2 rounded ${filterPeriod === 'Total' ? 'bg-orange-600 text-white' : darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>Total</button>
-          </div>
-          <div className="flex-1 flex justify-end">
-            <button onClick={() => setShowShare(true)} className="bg-orange-600 text-white px-3 py-2 rounded hover:bg-orange-700 flex items-center gap-1 text-xs whitespace-nowrap"><Share size={13} /> Share</button>
-          </div>
+        <div className="flex gap-2 mb-4 flex-wrap justify-center items-center">
+          {periods.map(period => (<button key={period} onClick={() => setFilterPeriod(String(period))} className={`px-4 py-2 rounded ${filterPeriod === String(period) ? 'bg-orange-600 text-white' : darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>{getPeriodLabel(period, game.numPeriods)}</button>))}
+          <button onClick={() => setFilterPeriod('Total')} className={`px-4 py-2 rounded ${filterPeriod === 'Total' ? 'bg-orange-600 text-white' : darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>Total</button>
+          <button onClick={() => setShowShare(true)} className="bg-orange-600 text-white px-3 py-2 rounded hover:bg-orange-700 flex items-center gap-1 text-xs whitespace-nowrap ml-auto"><Share size={13} /> Share</button>
         </div>
         <div className="overflow-x-auto">
           {(() => {
