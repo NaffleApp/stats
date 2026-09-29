@@ -108,6 +108,7 @@ const BasketballStatsApp = () => {
   const offRebPossessionRef = useRef(null); // 'us'|'them'|null — was there an OffReb in this possession
   const techFTActiveRef = useRef(false);
   const tipOffTimeRef = useRef(null); // ms epoch at tip-off button press — for video sync elapsed display
+  const dismissedLineupModalRef = useRef(null);
   const [jumpBallPopup, setJumpBallPopup] = useState(null); // {playerIndex, statType}
   const [oppScoreCategoryPopup, setOppScoreCategoryPopup] = useState(null); // {statType}
   const [ftCategoryPopup, setFtCategoryPopup] = useState(null); // {playerIndex}
@@ -166,6 +167,13 @@ const BasketballStatsApp = () => {
     const t = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  useEffect(() => {
+    if (screen === 'game' && dismissedLineupModalRef.current) {
+      setLineupConfirmModal(dismissedLineupModalRef.current);
+      dismissedLineupModalRef.current = null;
+    }
+  }, [screen]);
 
   useEffect(() => {
     if (screen !== 'game' || isEndGameView || !currentGame) return;
@@ -360,6 +368,7 @@ const BasketballStatsApp = () => {
       setLineupConfirmModal(prev => ({ ...prev, tipOffPhase: true, error: '' }));
       return;
     }
+    dismissedLineupModalRef.current = null;
     setLineupConfirmModal(null);
   };
 
@@ -370,6 +379,7 @@ const BasketballStatsApp = () => {
     setJumpBallArrow(winner === 'us' ? 'them' : 'us');
     tipOffTimeRef.current = Date.now();
     setTipOffDone(true);
+    dismissedLineupModalRef.current = null;
     setLineupConfirmModal(null);
   };
 
@@ -1473,26 +1483,28 @@ const BasketballStatsApp = () => {
         )}
 
         <div className="mb-2 sm:mb-4 space-y-1">
-          <div className="flex gap-1 items-center">
-            <button onClick={undoLastStat} disabled={gameLog.length === 0} className="bg-yellow-600 text-white px-2 sm:px-4 py-2 rounded hover:bg-yellow-700 disabled:opacity-50 flex items-center gap-1 text-sm"><Undo size={15} /> Undo</button>
+          {!tipOffDone && (
+            <div>
+              <button onClick={openStartingLineupModal} className="bg-teal-700 text-white px-2 py-1.5 rounded hover:bg-teal-800 text-xs whitespace-nowrap">Set Starting Lineup</button>
+            </div>
+          )}
+          <div className="flex gap-0.5 sm:gap-1 items-center">
+            <button onClick={undoLastStat} disabled={gameLog.length === 0} className="bg-yellow-600 text-white px-1.5 sm:px-2 py-2.5 rounded hover:bg-yellow-700 disabled:opacity-50 flex items-center gap-1 text-xs whitespace-nowrap"><Undo size={14} /> Undo</button>
+            <button onClick={() => handleOoB('us')} className="bg-green-700 text-white px-1.5 sm:px-2 py-2.5 rounded hover:bg-green-800 text-xs whitespace-nowrap">OoB-Us</button>
+            <button onClick={() => handleOoB('them')} className="bg-rose-700 text-white px-1.5 sm:px-2 py-2.5 rounded hover:bg-rose-800 text-xs whitespace-nowrap">OoB-Opp</button>
+            <button onClick={changePossession} className="bg-purple-600 text-white px-1.5 sm:px-2 py-2.5 rounded hover:bg-purple-700 text-xs whitespace-nowrap">⇄ Poss</button>
+            <button onClick={() => handleTimeout('us')} className="bg-green-700 text-white px-1.5 sm:px-2 py-2.5 rounded hover:bg-green-800 text-xs whitespace-nowrap">Time-Us</button>
+            <button onClick={() => handleTimeout('them')} className="bg-rose-700 text-white px-1.5 sm:px-2 py-2.5 rounded hover:bg-rose-800 text-xs whitespace-nowrap">Time-Opp</button>
             <div className="flex-1" />
-            <button onClick={endPeriod} disabled={currentPeriod >= 8} className="bg-orange-600 text-white px-2 sm:px-3 py-2 rounded hover:bg-orange-700 disabled:opacity-50 text-xs sm:text-sm whitespace-nowrap">End {getPeriodLabel(currentPeriod, currentGame.numPeriods)}</button>
+            <button onClick={endPeriod} disabled={currentPeriod >= 8} className="bg-orange-600 text-white px-1.5 sm:px-3 py-2.5 rounded hover:bg-orange-700 disabled:opacity-50 text-xs whitespace-nowrap">End {getPeriodLabel(currentPeriod, currentGame.numPeriods)}</button>
             {showEndGameConfirm ? (
-              <div className="flex gap-1 items-center">
-                <button onClick={() => { setShowEndGameConfirm(false); endGame(); }} className="bg-red-700 text-white px-2 py-2 rounded hover:bg-red-800 text-xs font-bold">End!</button>
-                <button onClick={() => setShowEndGameConfirm(false)} className="bg-gray-500 text-white px-2 py-2 rounded hover:bg-gray-600 text-xs">✕</button>
+              <div className="flex gap-0.5 sm:gap-1 items-center">
+                <button onClick={() => { setShowEndGameConfirm(false); endGame(); }} className="bg-red-700 text-white px-1.5 py-2.5 rounded hover:bg-red-800 text-xs font-bold whitespace-nowrap">End!</button>
+                <button onClick={() => setShowEndGameConfirm(false)} className="bg-gray-500 text-white px-1.5 py-2.5 rounded hover:bg-gray-600 text-xs">✕</button>
               </div>
             ) : (
-              <button onClick={() => setShowEndGameConfirm(true)} className="bg-red-600 text-white px-2 sm:px-3 py-2 rounded hover:bg-red-700 text-xs sm:text-sm whitespace-nowrap">End Game</button>
+              <button onClick={() => setShowEndGameConfirm(true)} className="bg-red-600 text-white px-1.5 sm:px-3 py-2.5 rounded hover:bg-red-700 text-xs whitespace-nowrap">End Game</button>
             )}
-          </div>
-          <div className="flex gap-1 flex-wrap items-center">
-            {!tipOffDone && <button onClick={openStartingLineupModal} className="bg-teal-700 text-white px-2 py-1.5 rounded hover:bg-teal-800 text-xs whitespace-nowrap">Set Starting Lineup</button>}
-            <button onClick={() => handleOoB('us')} className="bg-green-700 text-white px-2 py-1.5 rounded hover:bg-green-800 text-xs whitespace-nowrap">OoB-Us</button>
-            <button onClick={() => handleOoB('them')} className="bg-rose-700 text-white px-2 py-1.5 rounded hover:bg-rose-800 text-xs whitespace-nowrap">OoB-Opp</button>
-            <button onClick={changePossession} className="bg-purple-600 text-white px-2 py-1.5 rounded hover:bg-purple-700 text-xs whitespace-nowrap">⇄ Poss</button>
-            <button onClick={() => handleTimeout('us')} className="bg-green-700 text-white px-2 py-1.5 rounded hover:bg-green-800 text-xs whitespace-nowrap">TO-Us</button>
-            <button onClick={() => handleTimeout('them')} className="bg-rose-700 text-white px-2 py-1.5 rounded hover:bg-rose-800 text-xs whitespace-nowrap">TO-Opp</button>
           </div>
         </div>
 
@@ -1754,7 +1766,7 @@ const BasketballStatsApp = () => {
             <div className={`${theme.card} ${theme.text} rounded-lg p-5 max-w-md w-full max-h-[85vh] overflow-y-auto`}>
               {lineupConfirmModal.tipOffPhase ? (
                 <>
-                  <h3 className="text-xl font-bold mb-2 text-center">Who wins the tip?</h3>
+                  <h3 className="text-xl font-bold mb-2 text-center">Who won the tip?</h3>
                   <p className={`text-sm text-center mb-5 ${theme.textMuted}`}>Sets first possession and jump ball arrow</p>
                   <div className="flex gap-3">
                     <button onClick={() => handleTipOffWinner('us')} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-lg text-lg font-bold">{currentGame.teamName}</button>
@@ -1765,9 +1777,7 @@ const BasketballStatsApp = () => {
                 <>
                   <div className="flex items-center justify-between mb-1">
                     <h3 className="text-lg font-bold">{lineupConfirmModal.title}</h3>
-                    {!lineupConfirmModal.isPeriodTransition && (
-                      <button onClick={() => setLineupConfirmModal(null)} className={`p-1 rounded hover:bg-gray-500/20`}><X size={20} /></button>
-                    )}
+                    <button onClick={() => { if (lineupConfirmModal.isPeriodTransition) { dismissedLineupModalRef.current = lineupConfirmModal; } setLineupConfirmModal(null); }} className={`p-1 rounded hover:bg-gray-500/20`}><X size={20} /></button>
                   </div>
                   <p className={`text-sm text-center mb-4 ${theme.textMuted}`}>Select exactly {Math.min(5, currentGame.players.length)} players</p>
                   <div className="space-y-3 mb-4">
@@ -2271,7 +2281,7 @@ const GameSetup = ({ onStart, onBack, games, darkMode, theme }) => {
       if (game.minutesPerPeriod) setMinutesPerPeriod(game.minutesPerPeriod);
     }
   };
-  const handleStart = () => { if (teamName && opponent && players.some(p => p.number && p.name)) onStart({ teamName, date, opponent, location, players: players.filter(p => p.number && p.name), enableShotChart, numPeriods: parseInt(numPeriods) || 4, minutesPerPeriod: parseInt(minutesPerPeriod) || 10 }); };
+  const handleStart = () => { if (teamName && opponent && players.some(p => p.number && p.name)) onStart({ teamName, date, opponent, location, players: players.filter(p => p.number && p.name).sort((a, b) => (parseInt(a.number) || 0) - (parseInt(b.number) || 0)), enableShotChart, numPeriods: parseInt(numPeriods) || 4, minutesPerPeriod: parseInt(minutesPerPeriod) || 10 }); };
 
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.text} p-4 max-w-2xl mx-auto`}>
@@ -2907,6 +2917,47 @@ const BoxScore = ({ game, onBack, onMainMenu, filterPeriod, setFilterPeriod, dar
               })}
             </div>
           </div>
+          {(() => {
+            const fmtCell = (shots) => {
+              if (shots.length === 0) return '-';
+              const made = shots.filter(s => s.made).length;
+              return `${made}/${shots.length} (${Math.round((made / shots.length) * 100)}%)`;
+            };
+            const playerRows = game.players.map((player) => {
+              const shots = player.shotChart || [];
+              return { name: `#${player.number} ${player.name}`, totalAtt: shots.length, two: shots.filter(s => !s.is3pt), three: shots.filter(s => s.is3pt), a: shots.filter(s => qualityLabel(s.quality) === 'A'), b: shots.filter(s => qualityLabel(s.quality) === 'B'), c: shots.filter(s => qualityLabel(s.quality) === 'C') };
+            }).filter(r => r.totalAtt > 0).sort((a, b) => b.totalAtt - a.totalAtt);
+            if (playerRows.length === 0) return null;
+            return (
+              <div className={`mt-4 p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                <h4 className="font-bold mb-2 text-center">Player Shooting Breakdown</h4>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className={darkMode ? 'bg-gray-600' : 'bg-gray-200'}>
+                      <th className="p-1.5 text-left">Player</th>
+                      <th className="p-1.5 text-center">2pt</th>
+                      <th className="p-1.5 text-center">3pt</th>
+                      <th className="p-1.5 text-center text-green-400">A Grade</th>
+                      <th className="p-1.5 text-center text-yellow-400">B Grade</th>
+                      <th className="p-1.5 text-center text-red-400">C Grade</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {playerRows.map((row, idx) => (
+                      <tr key={idx} className={`border-b ${theme.border} ${idx % 2 === 1 ? (darkMode ? 'bg-gray-600/50' : 'bg-white') : ''}`}>
+                        <td className="p-1.5 font-medium whitespace-nowrap">{row.name}</td>
+                        <td className="p-1.5 text-center">{fmtCell(row.two)}</td>
+                        <td className="p-1.5 text-center">{fmtCell(row.three)}</td>
+                        <td className="p-1.5 text-center">{fmtCell(row.a)}</td>
+                        <td className="p-1.5 text-center">{fmtCell(row.b)}</td>
+                        <td className="p-1.5 text-center">{fmtCell(row.c)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
       )}
       {isEndGameView && rotations && rotations.length > 0 && (() => {
