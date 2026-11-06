@@ -1,4 +1,4 @@
-const CACHE = 'naffle-v4.17';
+const CACHE = 'naffle-v4.18';
 
 const PRE_CACHE = [
   './',
